@@ -61,6 +61,7 @@ typedef struct connection {
     buffer headers;
     buffer body;
     char buf[RECVBUF];
+    bool write_event_have_triggered;
 } connection;
 
 #endif /* WRK_H */

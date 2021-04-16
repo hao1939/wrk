@@ -218,6 +218,7 @@ void *thread_main(void *arg) {
         c->request = request;
         c->length  = length;
         c->delayed = cfg.delay;
+        c->write_event_have_triggered = false;
         connect_socket(thread, c);
     }
 
@@ -289,8 +290,10 @@ static int record_rate(aeEventLoop *loop, long long id, void *data) {
 }
 
 static int delay_request(aeEventLoop *loop, long long id, void *data) {
+    aeDeleteTimeEvent(loop, id);
     connection *c = data;
     c->delayed = false;
+    c->write_event_have_triggered = false;
     aeCreateFileEvent(loop, c->fd, AE_WRITABLE, socket_writeable, c);
     return AE_NOMORE;
 }
@@ -388,7 +391,10 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     if (c->delayed) {
         uint64_t delay = script_delay(thread->L);
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-        aeCreateTimeEvent(loop, delay, delay_request, c, NULL);
+        if (c->write_event_have_triggered == false){
+            c->write_event_have_triggered = true;
+            aeCreateTimeEvent(loop, delay, delay_request, c, NULL);
+        }
         return;
     }
 
